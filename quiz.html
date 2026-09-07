@@ -48,7 +48,46 @@
     }
     .option:hover { background:#0d285b; transform:translateY(-1px); }
     .option:active { transform:scale(.99); }
+    .option.correct {
+      background:#1f7a45 !important;
+      border-color:#66d692 !important;
+      color:#fff !important;
+      transform:none !important;
+    }
+    .option.incorrect {
+      background:#a52f3d !important;
+      border-color:#ff8390 !important;
+      color:#fff !important;
+      transform:none !important;
+    }
+    .option.locked { cursor:default; pointer-events:none; }
     .result { text-align:center; display:none; }
+    .review {
+      margin:24px 0 8px;
+      text-align:left;
+      display:grid;
+      gap:10px;
+    }
+    .review-title {
+      text-align:center;
+      color:#fff5d4;
+      margin:8px 0 4px;
+      font-size:20px;
+    }
+    .review-item {
+      border:1px solid rgba(226,184,99,.28);
+      background:rgba(8,26,60,.72);
+      border-radius:14px;
+      padding:12px 14px;
+      line-height:1.35;
+    }
+    .review-item.ok { border-color:rgba(102,214,146,.45); }
+    .review-item.no { border-color:rgba(255,131,144,.45); }
+    .review-question { color:#fff5d4; font-weight:700; }
+    .review-status { margin-top:5px; font-weight:700; }
+    .review-item.ok .review-status { color:#8be4ad; }
+    .review-item.no .review-status { color:#ff98a3; }
+    .review-answer { color:#d8d1bf; margin-top:4px; font-size:14px; }
     .score {
       font-size:clamp(44px,13vw,72px);
       color:#ffe6a0;
@@ -83,6 +122,8 @@
         <div>Seu resultado</div>
         <div class="score" id="score"></div>
         <h2 id="message"></h2>
+        <div class="review-title">Veja como você se saiu</div>
+        <div id="review" class="review"></div>
         <div class="controls">
           <button class="primary" id="again">Jogar novamente</button>
           <button class="secondary" id="share">Compartilhar resultado</button>
@@ -103,6 +144,8 @@
     let index = 0;
     let acertos = 0;
     let perguntasDaPartida = [];
+    let respostasDaPartida = [];
+    let aguardandoProxima = false;
 
     function embaralhar(lista) {
       const copia = [...lista];
@@ -116,6 +159,8 @@
     function prepararPartida() {
       index = 0;
       acertos = 0;
+      respostasDaPartida = [];
+      aguardandoProxima = false;
 
       // Mantém a ordem das perguntas, mas embaralha as alternativas
       // toda vez que o quiz começa.
@@ -151,9 +196,27 @@
         botao.textContent = texto;
 
         botao.onclick = () => {
-          if (texto === q.correta) acertos++;
-          index++;
-          render();
+          if (aguardandoProxima) return;
+          aguardandoProxima = true;
+
+          const acertou = texto === q.correta;
+          if (acertou) acertos++;
+
+          respostasDaPartida.push({
+            pergunta: q.pergunta,
+            resposta: texto,
+            acertou
+          });
+
+          const botoes = box.querySelectorAll(".option");
+          botoes.forEach(b => b.classList.add("locked"));
+          botao.classList.add(acertou ? "correct" : "incorrect");
+
+          setTimeout(() => {
+            index++;
+            aguardandoProxima = false;
+            render();
+          }, 500);
         };
 
         box.appendChild(botao);
@@ -168,6 +231,34 @@
       document.getElementById("score").textContent = `${acertos}/${total}`;
       document.getElementById("message").textContent =
         cfg.mensagensResultado[acertos] || "Obrigada por participar! ✨";
+
+      const review = document.getElementById("review");
+      review.innerHTML = "";
+
+      respostasDaPartida.forEach((item, i) => {
+        const bloco = document.createElement("div");
+        bloco.className = `review-item ${item.acertou ? "ok" : "no"}`;
+
+        const pergunta = document.createElement("div");
+        pergunta.className = "review-question";
+        pergunta.textContent = `${i + 1}. ${item.pergunta}`;
+
+        const status = document.createElement("div");
+        status.className = "review-status";
+        status.textContent = item.acertou ? "✅ Acertou" : "❌ Errou";
+
+        bloco.appendChild(pergunta);
+        bloco.appendChild(status);
+
+        if (!item.acertou) {
+          const resposta = document.createElement("div");
+          resposta.className = "review-answer";
+          resposta.textContent = `Você marcou: ${item.resposta}`;
+          bloco.appendChild(resposta);
+        }
+
+        review.appendChild(bloco);
+      });
     }
 
     document.getElementById("again").onclick = prepararPartida;
