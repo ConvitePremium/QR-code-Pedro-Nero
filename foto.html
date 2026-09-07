@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Minha Foto</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .editor-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 941 / 1672;
+      overflow: hidden;
+      border-radius: 18px;
+      background: #050a14;
+      border: 1px solid rgba(226,184,99,.4);
+      touch-action: none;
+      box-shadow: 0 12px 35px rgba(0,0,0,.35);
+    }
+    canvas { width:100%; height:100%; display:block; }
+    .empty {
+      position:absolute; inset:0;
+      display:grid; place-items:center;
+      padding:24px;
+      text-align:center;
+      color:#d9d4c6;
+      pointer-events:none;
+    }
+    .file-label {
+      display:block;
+      text-align:center;
+      padding:14px 16px;
+      border-radius:16px;
+      border:1px solid #ffd986;
+      background:linear-gradient(180deg,#ffe9aa,#d6a94f);
+      color:#071329;
+      font-weight:700;
+      cursor:pointer;
+    }
+    #fileInput { display:none; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topbar">
+      <button class="back" onclick="location.href='index.html'">← Voltar</button>
+    </div>
+
+    <section class="card">
+      <h1>Minha Foto</h1>
+      <p class="subtitle">Escolha uma foto, ajuste o enquadramento e baixe com a moldura da festa.</p>
+
+      <label class="file-label" for="fileInput">📷 Escolher foto</label>
+      <input id="fileInput" type="file" accept="image/*">
+
+      <div style="height:14px"></div>
+
+      <div id="editorWrap" class="editor-wrap">
+        <canvas id="canvas" width="941" height="1672"></canvas>
+        <div id="empty" class="empty">Escolha uma foto para começar.</div>
+      </div>
+
+      <div class="controls">
+        <div class="range-row">
+          <span>Zoom</span>
+          <input id="zoom" type="range" min="1" max="3.5" step="0.01" value="1">
+        </div>
+        <div class="row">
+          <button id="centralizar" class="secondary" type="button">Centralizar</button>
+          <button id="download" class="primary" type="button">Baixar foto</button>
+        </div>
+        <p class="small">Arraste a foto com o dedo ou mouse. O processamento acontece no seu próprio aparelho; a foto não é enviada para nenhum servidor.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const wrap = document.getElementById("editorWrap");
+    const input = document.getElementById("fileInput");
+    const zoomEl = document.getElementById("zoom");
+    const empty = document.getElementById("empty");
+
+    const W = canvas.width, H = canvas.height;
+    const frame = new Image();
+    frame.src = "assets/moldura.png";
+
+    let photo = null;
+    let baseScale = 1;
+    let zoom = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+
+    function resetPosition() {
+      if (!photo) return;
+      baseScale = Math.max(W / photo.naturalWidth, H / photo.naturalHeight);
+      zoom = 1;
+      zoomEl.value = 1;
+      offsetX = 0;
+      offsetY = 0;
+      draw();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = "#071020";
+      ctx.fillRect(0, 0, W, H);
+
+      if (photo) {
+        const s = baseScale * zoom;
+        const dw = photo.naturalWidth * s;
+        const dh = photo.naturalHeight * s;
+        ctx.drawImage(photo, (W - dw)/2 + offsetX, (H - dh)/2 + offsetY, dw, dh);
+      }
+      if (frame.complete) ctx.drawImage(frame, 0, 0, W, H);
+    }
+
+    frame.onload = draw;
+
+    input.addEventListener("change", () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        photo = img;
+        empty.style.display = "none";
+        resetPosition();
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    });
+
+    zoomEl.addEventListener("input", () => {
+      zoom = Number(zoomEl.value);
+      draw();
+    });
+
+    function pointerPos(e) {
+      const r = wrap.getBoundingClientRect();
+      return {
+        x: (e.clientX - r.left) * (W / r.width),
+        y: (e.clientY - r.top) * (H / r.height)
+      };
+    }
+
+    wrap.addEventListener("pointerdown", e => {
+      if (!photo) return;
+      dragging = true;
+      wrap.setPointerCapture(e.pointerId);
+      const p = pointerPos(e);
+      lastX = p.x; lastY = p.y;
+    });
+
+    wrap.addEventListener("pointermove", e => {
+      if (!dragging || !photo) return;
+      const p = pointerPos(e);
+      offsetX += p.x - lastX;
+      offsetY += p.y - lastY;
+      lastX = p.x; lastY = p.y;
+      draw();
+    });
+
+    wrap.addEventListener("pointerup", () => dragging = false);
+    wrap.addEventListener("pointercancel", () => dragging = false);
+
+    document.getElementById("centralizar").addEventListener("click", resetPosition);
+
+    document.getElementById("download").addEventListener("click", () => {
+      if (!photo) {
+        alert("Escolha uma foto primeiro.");
+        return;
+      }
+      draw();
+      canvas.toBlob(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "minha-foto-pedro-nero.png";
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+      }, "image/png", 1);
+    });
+
+    draw();
+  </script>
+</body>
+</html>

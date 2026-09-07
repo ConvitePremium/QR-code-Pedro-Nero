@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Quiz da Aniversariante</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .progress {
+      width:100%;
+      height:8px;
+      border-radius:999px;
+      overflow:hidden;
+      background:#071329;
+      border:1px solid rgba(226,184,99,.3);
+      margin-bottom:18px;
+    }
+    .bar {
+      height:100%;
+      width:0;
+      background:linear-gradient(90deg,#c99a45,#fff0b4);
+      transition:.25s;
+    }
+    .counter {
+      text-align:center;
+      color:#cfc8b7;
+      font-size:14px;
+      margin-bottom:8px;
+    }
+    .question {
+      font-size:clamp(21px,5vw,30px);
+      text-align:center;
+      color:#fff5d4;
+      margin:12px 0 18px;
+      line-height:1.25;
+    }
+    .options { display:grid; gap:10px; }
+    .option {
+      width:100%;
+      border:1px solid rgba(226,184,99,.45);
+      background:#081a3c;
+      color:#fff4d4;
+      padding:14px;
+      border-radius:15px;
+      cursor:pointer;
+      text-align:left;
+      transition:.16s ease;
+    }
+    .option:hover { background:#0d285b; transform:translateY(-1px); }
+    .option:active { transform:scale(.99); }
+    .result { text-align:center; display:none; }
+    .score {
+      font-size:clamp(44px,13vw,72px);
+      color:#ffe6a0;
+      margin:8px 0;
+      font-weight:700;
+    }
+    #message {
+      line-height:1.45;
+      color:#fff5d4;
+      font-size:clamp(20px,5vw,28px);
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topbar">
+      <button class="back" onclick="location.href='index.html'">← Voltar</button>
+    </div>
+
+    <section class="card">
+      <h1 id="title"></h1>
+      <p id="sub" class="subtitle"></p>
+
+      <div id="game">
+        <div class="counter" id="counter"></div>
+        <div class="progress"><div class="bar" id="bar"></div></div>
+        <div class="question" id="question"></div>
+        <div class="options" id="options"></div>
+      </div>
+
+      <div id="result" class="result">
+        <div>Seu resultado</div>
+        <div class="score" id="score"></div>
+        <h2 id="message"></h2>
+        <div class="controls">
+          <button class="primary" id="again">Jogar novamente</button>
+          <button class="secondary" id="share">Compartilhar resultado</button>
+          <button class="secondary" id="downloadResult">Baixar resultado</button>
+        </div>
+      </div>
+
+      <canvas id="shareCanvas" width="1080" height="1920" style="display:none"></canvas>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+    const cfg = EVENTO_CONFIG.quiz;
+    document.getElementById("title").textContent = cfg.titulo;
+    document.getElementById("sub").textContent = cfg.subtitulo;
+
+    let index = 0;
+    let acertos = 0;
+    let perguntasDaPartida = [];
+
+    function embaralhar(lista) {
+      const copia = [...lista];
+      for (let i = copia.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copia[i], copia[j]] = [copia[j], copia[i]];
+      }
+      return copia;
+    }
+
+    function prepararPartida() {
+      index = 0;
+      acertos = 0;
+
+      // Mantém a ordem das perguntas, mas embaralha as alternativas
+      // toda vez que o quiz começa.
+      perguntasDaPartida = cfg.perguntas.map(q => ({
+        ...q,
+        opcoes: embaralhar(q.opcoes)
+      }));
+
+      document.getElementById("result").style.display = "none";
+      document.getElementById("game").style.display = "block";
+      render();
+    }
+
+    function render() {
+      const total = perguntasDaPartida.length;
+
+      if (index >= total) {
+        finish();
+        return;
+      }
+
+      const q = perguntasDaPartida[index];
+      document.getElementById("counter").textContent = `Pergunta ${index + 1} de ${total}`;
+      document.getElementById("bar").style.width = `${(index / total) * 100}%`;
+      document.getElementById("question").textContent = q.pergunta;
+
+      const box = document.getElementById("options");
+      box.innerHTML = "";
+
+      q.opcoes.forEach(texto => {
+        const botao = document.createElement("button");
+        botao.className = "option";
+        botao.textContent = texto;
+
+        botao.onclick = () => {
+          if (texto === q.correta) acertos++;
+          index++;
+          render();
+        };
+
+        box.appendChild(botao);
+      });
+    }
+
+    function finish() {
+      const total = perguntasDaPartida.length;
+
+      document.getElementById("game").style.display = "none";
+      document.getElementById("result").style.display = "block";
+      document.getElementById("score").textContent = `${acertos}/${total}`;
+      document.getElementById("message").textContent =
+        cfg.mensagensResultado[acertos] || "Obrigada por participar! ✨";
+    }
+
+    document.getElementById("again").onclick = prepararPartida;
+
+    function quebrarTexto(ctx, texto, maxWidth) {
+      const palavras = texto.split(/\s+/);
+      const linhas = [];
+      let linha = "";
+
+      for (const palavra of palavras) {
+        const teste = linha ? linha + " " + palavra : palavra;
+        if (ctx.measureText(teste).width > maxWidth && linha) {
+          linhas.push(linha);
+          linha = palavra;
+        } else {
+          linha = teste;
+        }
+      }
+
+      if (linha) linhas.push(linha);
+      return linhas;
+    }
+
+    function desenharEstrelas(ctx) {
+      const pontos = [
+        [105,160,3],[210,95,2],[335,205,2],[500,120,3],[700,190,2],[880,105,3],[965,245,2],
+        [155,365,2],[900,410,3],[120,620,3],[960,680,2],[180,980,2],[920,1030,3],[125,1310,2],
+        [980,1370,3],[240,1515,2],[820,1580,2],[130,1750,3],[955,1780,2],[540,1720,3]
+      ];
+
+      ctx.save();
+      ctx.fillStyle = "rgba(255,244,196,.92)";
+      pontos.forEach(([x,y,r]) => {
+        ctx.beginPath();
+        ctx.arc(x,y,r,0,Math.PI*2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    async function gerarCardResultado() {
+      const canvas = document.getElementById("shareCanvas");
+      const ctx = canvas.getContext("2d");
+      const W = canvas.width;
+      const H = canvas.height;
+      const total = perguntasDaPartida.length;
+      const mensagem = cfg.mensagensResultado[acertos] || "Obrigada por participar! ✨";
+
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, "#07142f");
+      grad.addColorStop(.45, "#0a2558");
+      grad.addColorStop(1, "#030914");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      const vignette = ctx.createRadialGradient(W/2, H/2, 250, W/2, H/2, 1000);
+      vignette.addColorStop(0, "rgba(255,255,255,.02)");
+      vignette.addColorStop(1, "rgba(0,0,0,.5)");
+      ctx.fillStyle = vignette;
+      ctx.fillRect(0, 0, W, H);
+
+      desenharEstrelas(ctx);
+
+      ctx.save();
+      ctx.strokeStyle = "#d8af58";
+      ctx.lineWidth = 8;
+      ctx.strokeRect(50, 50, W-100, H-100);
+      ctx.strokeStyle = "rgba(255,232,166,.55)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(68, 68, W-136, H-136);
+      ctx.restore();
+
+      ctx.save();
+      ctx.fillStyle = "#f4d985";
+      ctx.beginPath();
+      ctx.arc(875, 255, 76, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = "#0a1d46";
+      ctx.beginPath();
+      ctx.arc(905, 225, 72, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#f7e6a7";
+      ctx.font = "700 54px Georgia";
+      ctx.fillText("QUIZ DA ANIVERSARIANTE", W/2, 260);
+
+      ctx.font = "700 92px Georgia";
+      ctx.fillStyle = "#fff1bd";
+      ctx.fillText("PEDRO NERO", W/2, 410);
+
+      ctx.font = "600 40px Georgia";
+      ctx.fillStyle = "#d8c99e";
+      ctx.fillText("1 ANINHO", W/2, 470);
+
+      ctx.font = "700 180px Georgia";
+      ctx.fillStyle = "#ffe38f";
+      ctx.fillText(`${acertos}/${total}`, W/2, 790);
+
+      let titulo = "RESULTADO";
+      if (acertos === 10) titulo = "GABARITOU!";
+      else if (acertos >= 8) titulo = "MANDOU MUITO BEM!";
+      else if (acertos >= 6) titulo = "MANDOU BEM!";
+      else if (acertos >= 4) titulo = "QUASE LÁ!";
+      else titulo = "VALEU A PARTICIPAÇÃO!";
+
+      ctx.font = "700 58px Georgia";
+      ctx.fillStyle = "#fff4cf";
+      ctx.fillText(titulo, W/2, 905);
+
+      ctx.font = "500 42px Arial";
+      ctx.fillStyle = "#f5f0df";
+      const linhas = quebrarTexto(ctx, mensagem, 820);
+      const inicioY = 1035;
+      const lineHeight = 58;
+
+      linhas.slice(0, 7).forEach((linha, i) => {
+        ctx.fillText(linha, W/2, inicioY + i * lineHeight);
+      });
+
+      ctx.font = "600 34px Georgia";
+      ctx.fillStyle = "#d8af58";
+      ctx.fillText("Pedro Nero • 1 aninho", W/2, 1685);
+
+      ctx.font = "400 26px Arial";
+      ctx.fillStyle = "rgba(255,255,255,.72)";
+      ctx.fillText("Compartilhe seu resultado!", W/2, 1740);
+
+      return await new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), "image/png", 1);
+      });
+    }
+
+    function baixarImagem(blob) {
+      const total = perguntasDaPartida.length;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `quiz-pedro-nero-${acertos}de${total}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+
+    async function compartilharImagem() {
+      const blob = await gerarCardResultado();
+      const total = perguntasDaPartida.length;
+      const arquivo = new File(
+        [blob],
+        `quiz-pedro-nero-${acertos}de${total}.png`,
+        { type: "image/png" }
+      );
+      const texto = `Eu fiz ${acertos}/${total} no Quiz do Pedro Nero!`;
+
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [arquivo] }) && navigator.share) {
+          await navigator.share({
+            files: [arquivo],
+            title: "Quiz do Pedro Nero",
+            text: texto
+          });
+        } else if (navigator.share) {
+          baixarImagem(blob);
+          setTimeout(() => navigator.share({ text: texto }), 250);
+        } else {
+          baixarImagem(blob);
+          alert("O card do seu resultado foi baixado.");
+        }
+      } catch (erro) {
+        if (erro && erro.name !== "AbortError") {
+          baixarImagem(blob);
+        }
+      }
+    }
+
+    document.getElementById("share").onclick = compartilharImagem;
+
+    document.getElementById("downloadResult").onclick = async () => {
+      const blob = await gerarCardResultado();
+      baixarImagem(blob);
+    };
+
+    prepararPartida();
+  </script>
+</body>
+</html>

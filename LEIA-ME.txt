@@ -1,0 +1,72 @@
+ENGINE INTERATIVA — PEDRO NERO
+================================
+
+ARQUIVOS PRINCIPAIS
+- index.html       -> tela inicial com a arte enviada
+- foto.html        -> filtro/moldura para foto
+- quiz.html        -> quiz
+- config.js        -> arquivo que você edita
+- assets/
+    tela-inicial.png
+    moldura.png
+
+COMO TESTAR
+Abra index.html no navegador.
+
+ÁREAS CLICÁVEIS
+Edite config.js em:
+EVENTO_CONFIG > botoes > quiz
+EVENTO_CONFIG > botoes > foto
+
+Os valores são porcentagens.
+
+DICA:
+Abra:
+index.html?debug=1
+
+As áreas clicáveis vão aparecer destacadas em vermelho.
+Assim você ajusta x, y, largura e altura facilmente.
+
+QUIZ
+No config.js, altere:
+EVENTO_CONFIG > quiz > perguntas
+
+Cada pergunta tem:
+- pergunta
+- opcoes
+- correta
+
+"correta" começa em 0:
+0 = primeira opção
+1 = segunda opção
+2 = terceira opção
+3 = quarta opção
+
+MOLDURA
+Substitua assets/moldura.png por outra moldura PNG com transparência.
+Mantenha o mesmo nome "moldura.png" para não precisar mexer no código.
+
+TELA INICIAL
+Substitua assets/tela-inicial.png pela nova arte da cliente.
+Mantenha o mesmo nome "tela-inicial.png".
+
+GITHUB PAGES
+Envie todos os arquivos/pastas para o repositório.
+Depois ative GitHub Pages na branch principal.
+
+IMPORTANTE
+Esta engine não usa banco de dados.
+A foto escolhida pelo convidado é processada localmente no navegador
+e não é enviada para nenhum servidor.
+
+QUIZ ATUAL
+- 10 perguntas do Pedro Nero já configuradas.
+- As 4 alternativas são embaralhadas automaticamente a cada partida.
+- Há uma frase diferente para cada resultado, de 0/10 até 10/10.
+- Para trocar perguntas futuramente, edite somente config.js.
+
+COMPARTILHAMENTO DO RESULTADO
+- O botão "Compartilhar resultado" gera um card PNG 1080x1920 com a pontuação e a frase correspondente.
+- Em celulares/navegadores compatíveis, o menu de compartilhamento abre com a imagem.
+- Foi adicionado também o botão "Baixar resultado".
+- A engine continua sem banco de dados.
