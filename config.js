@@ -76,7 +76,7 @@ window.EVENTO_CONFIG = {
       0: "😅 Opa! Parece que você ainda tem muito para descobrir sobre o Pedro Nero!",
       1: "😂 Foi por pouco… de acertar quase nada! Bora conhecer melhor o Pedro Nero!",
       2: "🤭 Você ainda tem bastante coisa para descobrir sobre o nosso aniversariante!",
-      3: "😄 Tá começando! Mas o Pedro Nero ainda consegue te surpreender!",
+      3: "😄 Tá começando! Precisa visitar mais o Pedro Nero!",
       4: "👀 Quase na metade! Você já sabe algumas coisinhas sobre ele!",
       5: "💙 Metade! Você conhece o Pedro Nero razoavelmente bem!",
       6: "✨ Mandou bem! Você já sabe bastante sobre o Pedro Nero!",
