@@ -66,10 +66,12 @@
           <span>Zoom</span>
           <input id="zoom" type="range" min="1" max="3.5" step="0.01" value="1">
         </div>
+        <button id="centralizar" class="secondary" type="button" style="width:100%; margin-bottom:10px;">Centralizar</button>
         <div class="row">
-          <button id="centralizar" class="secondary" type="button">Centralizar</button>
           <button id="download" class="primary" type="button">Baixar foto</button>
+          <button id="share" class="secondary" type="button">Compartilhar / Instagram</button>
         </div>
+        <p id="shareNote" class="small">No celular, <strong>Compartilhar / Instagram</strong> abre as opções de compartilhamento disponíveis no aparelho.</p>
         <p class="small"><strong>Como ajustar:</strong> no celular, use <strong>2 dedos sobre a foto</strong> para mover e fazer o gesto de pinça para aumentar ou diminuir. Com <strong>1 dedo</strong>, você pode rolar a página normalmente. A barra de Zoom abaixo também pode ser usada para aproximar ou afastar. No computador, arraste a foto com o mouse. O processamento acontece no seu próprio aparelho; a foto não é enviada para nenhum servidor.</p>
       </div>
     </section>
@@ -237,20 +239,61 @@
 
     document.getElementById("centralizar").addEventListener("click", resetPosition);
 
-    document.getElementById("download").addEventListener("click", () => {
+    function makeBlob() {
+      return new Promise(resolve => {
+        draw();
+        canvas.toBlob(resolve, "image/png", 1);
+      });
+    }
+
+    document.getElementById("download").addEventListener("click", async () => {
       if (!photo) {
         alert("Escolha uma foto primeiro.");
         return;
       }
-      draw();
-      canvas.toBlob(blob => {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "minha-foto-pedro-nero.png";
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1500);
-      }, "image/png", 1);
+      const blob = await makeBlob();
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "minha-foto-pedro-nero.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
     });
+
+    const shareBtn = document.getElementById("share");
+    const shareNote = document.getElementById("shareNote");
+
+    shareBtn.addEventListener("click", async () => {
+      if (!photo) {
+        alert("Escolha uma foto primeiro.");
+        return;
+      }
+
+      const blob = await makeBlob();
+      if (!blob) return;
+      const file = new File([blob], "minha-foto-pedro-nero.png", { type: "image/png" });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: "Moldura - Pedro Nero"
+          });
+        } catch (err) {
+          if (err && err.name !== "AbortError") {
+            alert("Não foi possível abrir o compartilhamento neste aparelho. Use o botão Baixar foto.");
+          }
+        }
+      } else {
+        alert("O compartilhamento direto não é compatível com este navegador. Use Baixar foto e publique pelo Instagram.");
+      }
+    });
+
+    if (!(navigator.share && navigator.canShare)) {
+      shareNote.textContent = "Seu navegador pode não permitir compartilhar a imagem diretamente. O botão Baixar foto continuará funcionando normalmente.";
+    }
 
     draw();
   </script>
