@@ -1,5 +1,5 @@
 // ========================================================
-// CONFIGURAÇÃO DA ENGINE
+// CONFIGURAÇÃO DA ENGINE.
 // Edite SOMENTE este arquivo para personalizar cada evento.
 // ========================================================
 
