@@ -14,7 +14,7 @@
       border-radius: 18px;
       background: #050a14;
       border: 1px solid rgba(226,184,99,.4);
-      touch-action: none;
+      touch-action: pan-y;
       box-shadow: 0 12px 35px rgba(0,0,0,.35);
     }
     canvas { width:100%; height:100%; display:block; }
@@ -70,7 +70,7 @@
           <button id="centralizar" class="secondary" type="button">Centralizar</button>
           <button id="download" class="primary" type="button">Baixar foto</button>
         </div>
-        <p class="small">Arraste a foto com o dedo ou mouse. O processamento acontece no seu próprio aparelho; a foto não é enviada para nenhum servidor.</p>
+        <p class="small"><strong>Como ajustar:</strong> no celular, use <strong>2 dedos sobre a foto</strong> para mover e fazer o gesto de pinça para aumentar ou diminuir. Com <strong>1 dedo</strong>, você pode rolar a página normalmente. A barra de Zoom abaixo também pode ser usada para aproximar ou afastar. No computador, arraste a foto com o mouse. O processamento acontece no seu próprio aparelho; a foto não é enviada para nenhum servidor.</p>
       </div>
     </section>
   </main>
@@ -94,6 +94,9 @@
     let offsetY = 0;
     let dragging = false;
     let lastX = 0, lastY = 0;
+    let touchStartDistance = 0;
+    let touchStartZoom = 1;
+    let touchLastCenter = null;
 
     function resetPosition() {
       if (!photo) return;
@@ -148,8 +151,9 @@
       };
     }
 
+    // Desktop: arraste normalmente com o mouse.
     wrap.addEventListener("pointerdown", e => {
-      if (!photo) return;
+      if (!photo || e.pointerType === "touch") return;
       dragging = true;
       wrap.setPointerCapture(e.pointerId);
       const p = pointerPos(e);
@@ -157,7 +161,7 @@
     });
 
     wrap.addEventListener("pointermove", e => {
-      if (!dragging || !photo) return;
+      if (!dragging || !photo || e.pointerType === "touch") return;
       const p = pointerPos(e);
       offsetX += p.x - lastX;
       offsetY += p.y - lastY;
@@ -165,8 +169,71 @@
       draw();
     });
 
-    wrap.addEventListener("pointerup", () => dragging = false);
-    wrap.addEventListener("pointercancel", () => dragging = false);
+    wrap.addEventListener("pointerup", e => {
+      if (e.pointerType !== "touch") dragging = false;
+    });
+    wrap.addEventListener("pointercancel", e => {
+      if (e.pointerType !== "touch") dragging = false;
+    });
+
+    function touchPoint(touch) {
+      const r = wrap.getBoundingClientRect();
+      return {
+        x: (touch.clientX - r.left) * (W / r.width),
+        y: (touch.clientY - r.top) * (H / r.height)
+      };
+    }
+
+    function touchDistance(a, b) {
+      return Math.hypot(b.x - a.x, b.y - a.y);
+    }
+
+    function touchCenter(a, b) {
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+
+    // Celular: 1 dedo fica livre para rolar a página; 2 dedos ajustam a foto.
+    wrap.addEventListener("touchstart", e => {
+      if (!photo || e.touches.length !== 2) return;
+      e.preventDefault();
+      const a = touchPoint(e.touches[0]);
+      const b = touchPoint(e.touches[1]);
+      touchStartDistance = touchDistance(a, b);
+      touchStartZoom = zoom;
+      touchLastCenter = touchCenter(a, b);
+    }, { passive: false });
+
+    wrap.addEventListener("touchmove", e => {
+      if (!photo || e.touches.length !== 2 || !touchLastCenter) return;
+      e.preventDefault();
+      const a = touchPoint(e.touches[0]);
+      const b = touchPoint(e.touches[1]);
+      const center = touchCenter(a, b);
+      const distance = touchDistance(a, b);
+
+      offsetX += center.x - touchLastCenter.x;
+      offsetY += center.y - touchLastCenter.y;
+
+      if (touchStartDistance > 0) {
+        zoom = Math.min(3.5, Math.max(1, touchStartZoom * (distance / touchStartDistance)));
+        zoomEl.value = zoom;
+      }
+
+      touchLastCenter = center;
+      draw();
+    }, { passive: false });
+
+    wrap.addEventListener("touchend", e => {
+      if (e.touches.length < 2) {
+        touchStartDistance = 0;
+        touchLastCenter = null;
+      }
+    });
+
+    wrap.addEventListener("touchcancel", () => {
+      touchStartDistance = 0;
+      touchLastCenter = null;
+    });
 
     document.getElementById("centralizar").addEventListener("click", resetPosition);
 
